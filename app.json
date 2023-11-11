@@ -1,0 +1,17 @@
+{
+  "expo": {
+    "name": "myReactNativeApp",
+    "slug": "alicecoolapp",
+    "version": "1.0.0",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "b5fe0936-c9ea-4fc8-9d4a-eebb9244fe92"
+      }
+    },
+    "owner": "alice_29_shevchuk"
+  },
+  "name": "myReactNativeApp"
+}
