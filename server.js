@@ -15,7 +15,6 @@ wss.on('connection', (ws) => {
 
     if (data.type === 'image' && data.imageData) {
       console.log('Изображение');
-
       if (!fs.existsSync(directory)) {
         fs.mkdirSync(directory);
       }
@@ -37,7 +36,12 @@ wss.on('connection', (ws) => {
           }
         }
       });
-    } else {
+    } 
+    else if(data.type === 'voice' && data.audioData && data.urlSender){
+      console.log('Voice Message Received');
+      handleVoiceMessage(ws, data.audioData,data.urlSender); 
+    }
+    else {
       clients.forEach(client => {
         if (client !== ws && client.readyState === WebSocket.OPEN) {
           client.send(JSON.stringify(data));
@@ -46,3 +50,28 @@ wss.on('connection', (ws) => {
     }
   });
 });
+const handleVoiceMessage = (ws, audioData,urlSender) => {
+  try {
+    const filePath = path.join(directory, `voice_${Date.now()}.wav`);
+    console.log(filePath);
+    if (!fs.existsSync(directory)) {
+      fs.mkdirSync(directory);
+    }
+    fs.writeFileSync(filePath, Buffer.from(Object.values(audioData)));
+    clients.forEach(client => {
+    if (client !== ws && client.readyState === WebSocket.OPEN) {
+        try {
+            const voiceMessageBuffer = fs.readFileSync(filePath);
+            const base64VoiceMessage = voiceMessageBuffer.toString('base64');
+            const formattedMessage = base64VoiceMessage;
+            console.log(urlSender);
+            client.send(JSON.stringify({ type: 'voice', audioUrl: formattedMessage, senderAudioPath: urlSender }));
+        } catch (error) {
+            console.error('Error sending voice message:', error);
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Error handling voice message:', error);
+  }
+};

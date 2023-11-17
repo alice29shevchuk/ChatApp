@@ -1,15 +1,77 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, TextInput, Image, StyleSheet, Text, ScrollView, TouchableOpacity } from 'react-native';
+import { View, TextInput, Image, StyleSheet, Text, ScrollView, TouchableOpacity, Button } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
 import { decode } from 'base-64';
+import { Audio } from 'expo-av';
 
 export default function App() {
   const [text, setText] = useState('');
   const [receivedMessages, setReceivedMessages] = useState([]);
   const [receivedImages, setReceivedImages] = useState([]);
   const [socket, setSocket] = useState(null);
-  const serverUrl = 'ws://192.168.0.102:8080';
+  const serverUrl = 'ws://192.168.0.108:8080';
+  const [receivedAudios, setReceivedAudios] = useState([]);
+  const [recording, setRecording] = useState(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [sound, setSound] = useState(null);
+  const [currentAudioUrl, setCurrentAudioUrl] = useState(null);
+  const [isRecordingFinished, setIsRecordingFinished] = useState(false);
+  const [isAudioReceived, setIsAudioReceived] = useState(false);
+  const [audioSender,setAudioSender] = useState(null);
+
+  const allMessages = [
+    ...receivedMessages.map(message => ({ ...message, type: 'text' })),
+    ...receivedImages.map(image => ({ ...image, type: 'image' })),
+    ...receivedAudios.map(audio => ({ ...audio, type: 'audio' })),
+  ];
+  const sortedMessages = allMessages.sort((a, b) => a.timestamp - b.timestamp);
+  const playRecording = async (_index) => {
+    console.log("Now: " + _index['audiourl']);
+    const { sound: newSound } = await Audio.Sound.createAsync({
+      uri: _index['audiourl'],
+      shouldPlay: true,
+    });
+    setSound(newSound);
+    console.log('My audio: ', receivedAudios, '\n');
+    await newSound.playAsync();
+
+
+
+    // try {
+    //   if (sound) {
+    //     await sound.unloadAsync(); 
+    //   }
+    //   const fileName = `recording-${Date.now()}.caf`;
+    //   const filePath = `${FileSystem.cacheDirectory}AV/${fileName}`;
+    //   await FileSystem.makeDirectoryAsync(`${FileSystem.cacheDirectory}AV`, {
+    //     intermediates: true,
+    //   });
+    //   if(audioSender !== null){
+    //     const { sound: newSound } = await Audio.Sound.createAsync({
+    //       uri: audioSender,
+    //       shouldPlay: true,
+    //     });
+    //     setSound(newSound);
+    //     console.log('My audio: ',receivedAudios,'\n');
+    //     await newSound.playAsync();
+    //   }
+    //   else{
+    //     await FileSystem.writeAsStringAsync(filePath, currentAudioUrl, {
+    //       encoding: FileSystem.EncodingType.Base64,
+    //     });
+    //     const { sound: newSoundGet } = await Audio.Sound.createAsync({
+    //       uri: filePath,
+    //       shouldPlay: true,
+    //     });
+    //     setSound(newSoundGet);
+    //     console.log('Antother device audio: ',receivedAudios,'\n');
+    //     await newSoundGet.playAsync();
+    //   }
+    // } catch (error) {
+    //   console.error('Error loading sound:', error);
+    // }
+  };
   const openImageLibrary = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -18,93 +80,12 @@ export default function App() {
   
     if (!result.cancelled) {
       const selectedImage = result.uri;
-      console.log(result.uri);
+      
+      const newImage = { imageUrl: selectedImage, fromClient: true, timestamp: Date.now() };////////////
+      setReceivedImages(prevImages => [...prevImages, newImage]);
       sendImageToServer(selectedImage); 
-      setReceivedImages([...receivedImages, { imageUrl: selectedImage, fromClient: true }]);
     }
   }
-
-  //
-  //first
-  //
-
-  // const sendImageToServer = async (imageUri) => {
-  //   const message = {
-  //     type: 'image',
-  //     imageUri: imageUri
-  //   };
-  //   socket.send(JSON.stringify(message));
-  // }
-
-
-  //
-  //second
-  //
-
-  // const sendImageToServer = async (imageUri) => {
-  //   try {
-  //     const response = await FileSystem.readAsStringAsync(imageUri, {
-  //       encoding: FileSystem.EncodingType.Base64,
-  //     });
-  
-  //     const arrayBuffer = base64ToUint8Array(response);
-  
-  //     const message = {
-  //       type: 'image',
-  //       imageData: arrayBuffer,
-  //     };
-  //     socket.send(JSON.stringify(message));
-  //   } catch (error) {
-  //     console.error('Error reading image:', error);
-  //   }
-  // };
-  // const base64ToUint8Array = (base64) => {
-  //   const binaryString = decode(base64);
-  //   const length = binaryString.length;
-  //   const uint8Array = new Uint8Array(length);
-  
-  //   for (let i = 0; i < length; i++) {
-  //     uint8Array[i] = binaryString.charCodeAt(i);
-  //   }
-  
-  //   return uint8Array;
-  // };
-  
-
-
-  //
-  //finish
-  //
-
-  // const sendImageToServer = async (imageUri) => {
-  //   try {
-  //     const response = await FileSystem.readAsStringAsync(imageUri, {
-  //       encoding: FileSystem.EncodingType.Base64,
-  //     });
-  
-  //     const arrayBuffer = base64ToUint8Array(response);
-  
-  //     const message = {
-  //       type: 'image',
-  //       imageData: Array.from(new Uint8Array(arrayBuffer)),
-  //     };
-  
-  //     socket.send(JSON.stringify(message));
-  //   } catch (error) {
-  //     console.error('Error reading image:', error);
-  //   }
-  // };
-  // const base64ToUint8Array = (base64) => {
-  //   const binaryString = decode(base64);
-  //   const length = binaryString.length;
-  //   const uint8Array = new Uint8Array(length);
-  
-  //   for (let i = 0; i < length; i++) {
-  //     uint8Array[i] = binaryString.charCodeAt(i);
-  //   }
-  
-  //   return uint8Array;
-  // };
   const sendImageToServer = async (imageUri) => {
     try {
       const response = await FileSystem.readAsStringAsync(imageUri, {
@@ -118,7 +99,7 @@ export default function App() {
       for (let i = 0; i < binaryString.length; i++) {
         arrayBuffer[i] = binaryString.charCodeAt(i);
       }
-  
+
       const message = {
         type: 'image',
         imageData: arrayBuffer,
@@ -135,13 +116,9 @@ export default function App() {
   const handleButtonPress = () => {
     if (socket) {
       socket.send(JSON.stringify(text));
-      setReceivedMessages([...receivedMessages, { text, fromClient: true }]);
+      setReceivedMessages([...receivedMessages, { text, fromClient: true, timestamp: Date.now() }]);////////
       setText('');
     }
-  };
-  const handleImageMessage = (imageUrl) => {
-    console.log(imageUrl);
-    setReceivedImages([...receivedImages, { imageUrl, fromClient: false }]);
   };
   const scrollViewRef = useRef(); 
 
@@ -152,56 +129,39 @@ export default function App() {
     newSocket.onopen = () => {
       console.log('Connected to the server.');
     };
-
-    // newSocket.onmessage = async (event) => {
-    //   if (typeof event.data === 'string') {
-    //     console.log('In string');
-    //     console.log(event.data);
-    //     // Remove quotes from the message text
-    //     const messageText = event.data.replace(/^"(.*)"$/, '$1');
-    //     setReceivedMessages([...receivedMessages, { text: messageText, fromClient: false }]);
-    //     console.log(receivedMessages);
-    //   } else if (event.data instanceof ArrayBuffer) {
-    //     console.log('ArrayBuffer!!!');
-    //     // try {
-    //     //   const arrayBuffer = event.data;
-    //     //   const uint8Array = new Uint8Array(arrayBuffer);
-    //     //   const blob = new Blob([uint8Array], { type: 'image/png' });
-
-    //     //   // Преобразование blob в data URL
-    //     //   const reader = new FileReader();
-    //     //   reader.onloadend = () => {
-    //     //     const imageUrl = reader.result;
-    //     //     setReceivedImages([...receivedImages, { imageUrl, fromClient: false }]);
-    //     //   };
-    //     //   reader.readAsDataURL(blob);
-    //     // } catch (error) {
-    //     //   console.error('Error creating image:', error);
-    //     // }
-
-    //     // // Manually convert ArrayBuffer to a string
-    //     // const message = String.fromCharCode.apply(null, new Uint8Array(event.data));
-    //     // setReceivedMessages([...receivedMessages, { text: message, fromClient: false }]);
-    //   }else if (typeof event.data === 'object' && event.data.type === 'image' && event.data.imageUrl) {
-    //     console.log('In image!!!');
-    //     handleImageMessage(event.data.imageUrl);
-    //   }
-    //   // Используем реф для прокрутки ScrollView
-    //   if (scrollViewRef.current) {
-    //     scrollViewRef.current.scrollToEnd({ animated: true });
-    //   }
-    // };
     newSocket.onmessage = async (event) => {
       try {
         const data = JSON.parse(event.data);
     
         if (data.type === 'image' && data.imageUrl) {
-          console.log('In image!!!');
-          handleImageMessage(data.imageUrl);
-        } else {
-          console.log('In string');
+          setReceivedImages(prevImages => [...prevImages, { imageUrl: data.imageUrl, fromClient: false,timestamp: Date.now() }]);/////////////
+        } 
+        else if(data.type === 'voice' && data.audioUrl){
+          console.log('Voice Message Received');
+            setIsAudioReceived(true);
+            setCurrentAudioUrl(data.audioUrl);
+            //
+            //
+            //
+            const fileName = `recording-${Date.now()}.caf`;
+            const filePath = `${FileSystem.cacheDirectory}AV/${fileName}`;
+
+          if (audioSender !== null) {
+            setReceivedAudios(prevAudios => [...prevAudios, { audiourl: audioSender, fromClient: false, timestamp: Date.now() }]);////////////////
+            console.log(receivedAudios,'\n');
+          }
+          else {
+            await FileSystem.writeAsStringAsync(filePath, data.audioUrl, {
+              encoding: FileSystem.EncodingType.Base64,
+            });
+            console.log('Get audio from server: ');
+            setReceivedAudios(prevAudios => [...prevAudios, { audiourl: filePath, fromClient: false, timestamp: Date.now() }]);////////////////
+            console.log(receivedAudios,'\n');
+          }    
+        }
+        else {
           const messageText = data.replace(/^"(.*)"$/, '$1');
-          setReceivedMessages([...receivedMessages, { text: messageText, fromClient: false }]);
+          setReceivedMessages([...receivedMessages, { text: messageText, fromClient: false, timestamp: Date.now() }]);///////////////
         }
         if (scrollViewRef.current) {
           scrollViewRef.current.scrollToEnd({ animated: true });
@@ -219,13 +179,88 @@ export default function App() {
       if (newSocket) {
         newSocket.close();
       }
+      if (sound) {
+        sound.unloadAsync();
+      }
     };
   }, [receivedMessages]);
+  const startRecording = async () => {
+    try {
+      await Audio.requestPermissionsAsync();
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+      });
 
+      if (recording) {
+        try {
+          await recording.stopAndUnloadAsync();
+        } catch (error) {
+          console.error('Error stopping existing recording:', error);
+        }
+        setRecording(null);
+      }
+
+      const newRecording = new Audio.Recording();
+      await newRecording.prepareToRecordAsync(Audio.RECORDING_OPTIONS_PRESET_HIGH_QUALITY);
+      await newRecording.startAsync();
+
+      setRecording(newRecording);
+      setIsRecording(true);
+    } catch (error) {
+      console.error('Error starting recording:', error);
+    }
+  };
+
+  const stopRecording = async () => {
+    try {
+      if (recording) {
+        await recording.stopAndUnloadAsync();
+        const status = await recording.getStatusAsync();
+
+        if (status.isDoneRecording) {
+          const audioURI = await recording.getURI();
+          setAudioSender(audioURI);
+          sendVoiceMessageToServer(audioURI);
+        }
+        setRecording(null);
+        setIsRecording(false);
+      } else {
+        console.warn('Recording is not currently active.');
+      }
+    } catch (error) {
+      console.error('Error stopping recording:', error);
+    }
+  };
+
+  const sendVoiceMessageToServer = async (audioURI) => {
+    try {
+      const response = await fetch(audioURI);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch audio file. Status: ${response.status}`);
+      }
+  
+      const audioData = await response.arrayBuffer();
+  
+      const message = {
+        type: 'voice',
+        audioData: Array.from(new Uint8Array(audioData)),
+        urlSender: audioURI
+      };
+      setIsRecordingFinished(true);
+      console.log('Send audio to server on own phone: ');
+      setReceivedAudios(prevAudios => [...prevAudios, { audiourl: audioURI, fromClient: true, timestamp: Date.now()}]);////////////
+      console.log(receivedAudios,'\n');
+      socket.send(JSON.stringify(message));
+
+    } catch (error) {
+      console.error('Error reading or sending audio file:', error);
+    }
+  };
   return (
     <View style={styles.container}>
       <ScrollView style={styles.messageContainer} ref={scrollViewRef}>
-        {receivedMessages.map((message, index) => (
+        {sortedMessages.map((message, index) => (
           <View
             key={index}
             style={[
@@ -233,20 +268,25 @@ export default function App() {
               message.fromClient ? styles.clientMessage : styles.responseMessage
             ]}
           >
-            <Text style={styles.messageText}>{message.text}</Text>
-          </View>
-        ))}
-        {receivedImages.map((image, index) => (
-          <View key={index} style={[
-            styles.image,
-            image.fromClient ? styles.clientMessage : styles.responseMessage
-          ]}>
-            {/* <Image source={require('./public/image_1699633972982.png')} style={{height:200,width:200}} /> */}
-            <Image source={{uri:image.imageUrl}} style={{height:200,width:200}} />
+            {message.type === 'text' && (
+              <Text style={styles.messageText}>{message.text}</Text>
+            )}
+            {message.type === 'image' && (
+              <Image source={{ uri: message.imageUrl }} style={{ height: 200, width: 200 }} />
+            )}
+            {message.type === 'audio' && (
+              <Button title="Прослушать аудио" onPress={() => {playRecording(message)}} />
+            )}
           </View>
         ))}
       </ScrollView>
       <View style={styles.inputContainer}>
+      <TouchableOpacity style={styles.sendButton} onPress={openImageLibrary}>
+          <Text style={styles.sendButtonText}>&#128450;</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.sendButton} onPress={isRecording ? stopRecording : startRecording}>
+          <Text style={styles.sendButtonText}>{isRecording ? <Text style={styles.sendButtonText}>&#128721;</Text> : <Text style={styles.sendButtonText}>&#127897;</Text>}</Text>
+        </TouchableOpacity>
         <TextInput
           style={styles.input}
           placeholder="Введите текст"
@@ -255,9 +295,6 @@ export default function App() {
         />
         <TouchableOpacity style={styles.sendButton} onPress={handleButtonPress}>
           <Text style={styles.sendButtonText}>&#9654;</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.galleryButton} onPress={openImageLibrary}>
-          <Text style={styles.galleryButtonText}>Галерея</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -273,9 +310,16 @@ const styles = StyleSheet.create({
   },
   messageContainer: {
     flex: 1,
-    marginTop: 35,
+    marginTop: 45,
+    width:350,
   },
   message: {
+    padding: 10,
+    margin: 8,
+    maxWidth: '80%',
+    alignSelf: 'flex-end',
+  },
+  image:{
     padding: 10,
     margin: 8,
     maxWidth: '80%',
@@ -325,6 +369,7 @@ const styles = StyleSheet.create({
   },
   sendButtonText: {
     fontSize: 24,
+    marginLeft:2,
     color: 'white',
   },
   messageText: {
